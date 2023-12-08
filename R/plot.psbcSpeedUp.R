@@ -28,11 +28,12 @@
 #'
 #' # Set hyperparameters
 #' mypriorPara <- list(
-#'   "groupInd" = 1:p, "eta0" = 0.02, "kappa0" = 1, "c0" = 2, "r" = 10 / 9, 
-#'   "delta" = 1e-05, "lambdaSq" = 1, "sigmaSq" = runif(1, 0.1, 10), 
-#'   "beta.prop.var" = 1, "beta.clin.var" = 1)
+#'   "groupInd" = 1:p, "eta0" = 0.02, "kappa0" = 1, "c0" = 2, "r" = 10 / 9,
+#'   "delta" = 1e-05, "lambdaSq" = 1, "sigmaSq" = runif(1, 0.1, 10),
+#'   "beta.prop.var" = 1, "beta.clin.var" = 1
+#' )
 #'
-#'\donttest{
+#' \donttest{
 #' # run Bayesian Lasso Cox
 #' library("psbcSpeedUp")
 #' set.seed(123)
@@ -45,7 +46,7 @@
 #'
 #' @export
 plot.psbcSpeedUp <- function(x, type = "mean", interval = TRUE, ...) {
-  if (!(inherits(x, "psbcSpeedUp") | is.matrix(x))) {
+  if (!(inherits(x, "psbcSpeedUp") || is.matrix(x))) {
     stop("Use only with 'psbcSpeedUp' object or a matrix!")
   }
 
@@ -63,14 +64,14 @@ plot.psbcSpeedUp <- function(x, type = "mean", interval = TRUE, ...) {
 
   if (inherits(x, "psbcSpeedUp")) {
     if (is.null(colnames(x$output$beta.p))) {
-      x_names <- paste0("x", 1:ncol(x$output$beta.p))
+      x_names <- paste0("x", seq_len(ncol(x$output$beta.p)))
     } else {
       x_names <- colnames(x$output$beta.p)
     }
     beta_p <- x$output$beta.p[-(1:(x$input$burnin / x$input$thin + 1)), ]
   } else {
     if (is.null(colnames(x))) {
-      x_names <- paste0("x", 1:ncol(x))
+      x_names <- paste0("x", seq_len(ncol(x)))
     } else {
       x_names <- colnames(x)
     }
