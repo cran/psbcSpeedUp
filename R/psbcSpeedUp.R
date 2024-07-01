@@ -5,13 +5,13 @@
 #' This a speed-up and extended version of the function \code{psbcGL()} in the R package \code{psbcGrouup}
 #'
 #' @name psbcSpeedUp
-#' @docType package
 #' @useDynLib psbcSpeedUp
 #' @aliases psbcSpeedUp-package
 #' @importFrom Rcpp evalCpp
 #' @importFrom xml2 as_xml_document write_xml
 #' @importFrom stats rexp rgamma runif
 #' @importFrom utils write.table
+#' @importFrom survival survreg Surv
 #'
 #' @param survObj a list containing observed data from \code{n} subjects;
 #' \code{t}, \code{di}, \code{x}. See details for more information
@@ -235,11 +235,14 @@ psbcSpeedUp <- function(survObj = NULL, p = 0, q = 0, hyperpar = list(),
   } else {
     ini_h <- rgamma(length(s), 1, 1)
   }
-  if (!"eta0" %in% names(hyperpar)) {
-    hyperpar$eta0 <- round(log(2) / 36, 2)
-  }
+  fit <- survreg(Surv(survObj$t, survObj$di, type = c('right')) ~ 1, 
+                 dist = "weibull", x = TRUE, y = TRUE)
   if (!"kappa0" %in% names(hyperpar)) {
-    hyperpar$kappa0 <- 1
+    hyperpar$kappa0  <- 1 / exp(fit$icoef["Log(scale)"])
+  }
+  if (!"eta0" %in% names(hyperpar)) {
+    # hyperpar$eta0 <- round(log(2) / 36, 2)
+    hyperpar$eta0 <- exp(fit$coefficients)^(-hyperpar$kappa0) 
   }
   if (!"c0" %in% names(hyperpar)) {
     hyperpar$c0 <- 2
