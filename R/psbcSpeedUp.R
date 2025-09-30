@@ -5,10 +5,8 @@
 #' This a speed-up and extended version of the function \code{psbcGL()} in the R package \code{psbcGrouup}
 #'
 #' @name psbcSpeedUp
-#' @useDynLib psbcSpeedUp
-#' @aliases psbcSpeedUp-package
+#'
 #' @importFrom Rcpp evalCpp
-#' @importFrom xml2 as_xml_document write_xml
 #' @importFrom stats rexp rgamma runif
 #' @importFrom utils write.table
 #' @importFrom survival survreg Surv
@@ -141,6 +139,7 @@ psbcSpeedUp <- function(survObj = NULL, p = 0, q = 0, hyperpar = list(),
     stop("Argument 'thin' must be a positive integer!")
   }
 
+  # TODO: remove 'outFilePath' & 'tmpFolder'
   # Check the directory for the output files
   if (outFilePath == "") {
     stop("Please specify a directory to save all output files!")
@@ -217,7 +216,7 @@ psbcSpeedUp <- function(survObj = NULL, p = 0, q = 0, hyperpar = list(),
   }
   s0 <- survObj$t[survObj$di == 1]
   if ("s" %in% names(hyperpar)) {
-    if (min(s) > min(s0) | max(s) < max(s0)) {
+    if (min(s) > min(s0) || max(s) < max(s0)) {
       stop("Parameter 's' does not cover all event times!")
     }
     if (any(diff(s) < 0)) {
@@ -235,14 +234,15 @@ psbcSpeedUp <- function(survObj = NULL, p = 0, q = 0, hyperpar = list(),
   } else {
     ini_h <- rgamma(length(s), 1, 1)
   }
-  fit <- survreg(Surv(survObj$t, survObj$di, type = c('right')) ~ 1, 
-                 dist = "weibull", x = TRUE, y = TRUE)
+  fit <- survreg(Surv(survObj$t, survObj$di, type = c("right")) ~ 1,
+    dist = "weibull", x = TRUE, y = TRUE
+  )
   if (!"kappa0" %in% names(hyperpar)) {
-    hyperpar$kappa0  <- 1 / exp(fit$icoef["Log(scale)"])
+    hyperpar$kappa0 <- 1 / exp(fit$icoef["Log(scale)"])
   }
   if (!"eta0" %in% names(hyperpar)) {
     # hyperpar$eta0 <- round(log(2) / 36, 2)
-    hyperpar$eta0 <- exp(fit$coefficients)^(-hyperpar$kappa0) 
+    hyperpar$eta0 <- exp(fit$coefficients)^(-hyperpar$kappa0)
   }
   if (!"c0" %in% names(hyperpar)) {
     hyperpar$c0 <- 2
@@ -264,8 +264,6 @@ psbcSpeedUp <- function(survObj = NULL, p = 0, q = 0, hyperpar = list(),
     hyperpar$beta_clin_var <- 1
   }
 
-  hyperParFile <- paste0(tmpFolder, "hyperpar.xml")
-
   ## Create the return object
   ret <- list(input = list(), output = list(), call = cl)
   class(ret) <- "psbcSpeedUp"
@@ -284,19 +282,12 @@ psbcSpeedUp <- function(survObj = NULL, p = 0, q = 0, hyperpar = list(),
   hyperpar$s <- hyperpar$beta.ini <- hyperpar$tauSq <- hyperpar$h <- hyperpar$groupInd <-
     hyperpar$beta.prop.var <- hyperpar$beta.clin.var <- NULL
 
-  ## Set up the XML file for hyperparameters
-  xml <- xml2::as_xml_document(
-    list(hyperparameters = list(
-      lapply(hyperpar, function(x) list(format(x, scientific = FALSE))) # every element in the list should be a list
-    ))
-  )
-  xml2::write_xml(xml, file = hyperParFile)
-
-  # Run Bayesian Cox model
+  # Run Bayesian Cox model via C++ code
   nChains <- 1
-  ret$output <- psbcSpeedUp_internal(
-    data, p, q, hyperParFile, outFilePath,
-    ini_beta, ini_tauSq, ini_h, groupInd, # hyperparameters which are vectors
+  ret$output <- drive(
+    survObj$t, survObj$di, survObj$x,
+    p, q, hyperpar, # outFilePath,
+    ini_beta, ini_tauSq, ini_h, groupInd,
     nIter, nChains, thin, rw
   )
 
